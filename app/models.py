@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Numeric, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Numeric, Enum as SQLEnum
 from sqlalchemy.sql import func
 from app.database import Base  
 from enum import Enum
@@ -33,13 +33,15 @@ class ProdutoMonitorado(Base):
     
     preco_alvo = Column(Numeric(10, 2), nullable=False)
 
+    data_limite_monitoramento = Column(Date, nullable=False)
+
     status = Column(SQLEnum(StatusMonitoramento), nullable=False, default=StatusMonitoramento.ATIVO)
 
-    data_de_inicio = Column(DateTime, server_default=func.now())
+    data_de_inicio = Column(Date, server_default=func.now())
 
     motivo_encerramento = Column(String(255), nullable=True)
 
-    data_final = Column(DateTime, nullable=True)
+    data_encerramento = Column(DateTime, nullable=True)
 
     ultima_execucao = Column(DateTime, nullable=True)
 
@@ -56,7 +58,7 @@ class LinkProduto(Base):
 
     status = Column(SQLEnum(StatusMonitoramento), nullable=False, default=StatusMonitoramento.ATIVO)
 
-    data_de_inicio = Column(DateTime, server_default=func.now())
+    data_de_inicio = Column(Date, server_default=func.now())
 
     ultimo_preco = Column(Numeric(10, 2), nullable=True)
 
