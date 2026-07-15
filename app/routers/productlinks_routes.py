@@ -5,26 +5,32 @@ from app.dependencies import pegar_sessao, get_current_user
 from app.schemas import LinkProdutoCreateSchema, LinkProdutoUpdateSchema
 from datetime import date, datetime, UTC
 
-productlinks_router = APIRouter(tags=["Criação De Links de Produtos"])
+productlinks_router = APIRouter(tags=["CRUD De Links de Produtos"])
 
 @productlinks_router.post("/produtos/{produto_monitorado_id}/links")
 async def criar_link(produto_monitorado_id: int, linkprodutocreateschema: LinkProdutoCreateSchema, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
 
     produto = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
-    
+
     if not produto:
         raise HTTPException(
             status_code=404,
             detail="Nenhum grupo de produto encontrado."
     )
 
-    link_existente = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.url == linkprodutocreateschema.url).first() 
+    if produto.status == StatusMonitoramento.CANCELADO:
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível adicionar links a um grupo cancelado."
+        )
+    
+    link_existente = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.url == linkprodutocreateschema.url, LinkProduto.status != StatusMonitoramento.CANCELADO).first() 
 
     if link_existente:
         # JA existe um link com essa url
         raise HTTPException(
             status_code=400,
-            detail="Você já possui um link para esta Loja."
+            detail="Você já possui um link para esta Loja"
     )
 
     novo_link = LinkProduto(produto_monitorado_id = produto_monitorado_id, nome_loja = linkprodutocreateschema.nome_loja, url = linkprodutocreateschema.url)
@@ -82,7 +88,6 @@ async def cancelar_link(produto_monitorado_id: int, link_id: int, current_user: 
             status_code=404,
             detail="Link não encontrado."
         )
-
 
     link_cancelado.status = StatusMonitoramento.CANCELADO
     link_cancelado.motivo_encerramento = "Cancelado pelo usuario"

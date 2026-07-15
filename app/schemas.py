@@ -35,3 +35,8 @@ class LinkProdutoCreateSchema(BaseModel):
 class LinkProdutoUpdateSchema(BaseModel):
     nome_loja: LojasSuportadas | None = None
     url: str | None = None
+
+class ProdutosMonitoradosUpdateSchema(BaseModel):
+    nome_produto: str | None = None
+    preco_alvo: Decimal | None = None
+    data_limite_monitoramento: date | None = None
