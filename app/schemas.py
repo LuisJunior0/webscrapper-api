@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from decimal import Decimal
 from datetime import date, datetime
+from app.models import LojasSuportadas
 
 class UsuarioSchema(BaseModel):
     nome: str
@@ -23,3 +24,14 @@ class ProdutosMonitoradosCreateSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+class LinkProdutoCreateSchema(BaseModel):
+    nome_loja :LojasSuportadas
+    url : str
+
+    class Config:
+        from_attributes = True
+
+class LinkProdutoUpdateSchema(BaseModel):
+    nome_loja: LojasSuportadas | None = None
+    url: str | None = None

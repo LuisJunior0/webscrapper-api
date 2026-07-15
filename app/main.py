@@ -18,15 +18,15 @@ oauth2_schema = OAuth2PasswordBearer(tokenUrl="/auth/login")
 from app.database import engine, Base
 from app import models
 
-
-
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
 from app.routers.auth_routes import auth_router
 from app.routers.monitoredproducts_routes import monitoredProducts_router
+from app.routers.productlinks_routes import productlinks_router
 
 
 app.include_router(auth_router)
 app.include_router(monitoredProducts_router)
+app.include_router(productlinks_router)

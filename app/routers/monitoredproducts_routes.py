@@ -8,21 +8,6 @@ from datetime import date, datetime, UTC
 
 monitoredProducts_router = APIRouter(tags=["Criação De Grupos de Produtos"])
 
-@monitoredProducts_router.get("/produtos")
-async def listar_produtos(current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
-    meus_produtos = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.user_id == current_user.id, ProdutoMonitorado.status != StatusMonitoramento.CANCELADO).all()
-
-    return [
-        {
-        "nome_produto": produto.nome_produto,
-        "preco_alvo": produto.preco_alvo,
-        "data_limite_monitoramento": produto.data_limite_monitoramento,
-        "status": produto.status,
-        "id": produto.id
-        } 
-        for produto in meus_produtos
-    ]
-
 
 @monitoredProducts_router.post("/criar_produto")
 async def criar_produto(produtomonitoradocreateschema: ProdutosMonitoradosCreateSchema, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
@@ -51,6 +36,21 @@ async def criar_produto(produtomonitoradocreateschema: ProdutosMonitoradosCreate
         "preco_alvo": novo_produto.preco_alvo,
         "data_limite_monitoramento": novo_produto.data_limite_monitoramento
     }
+
+@monitoredProducts_router.get("/produtos")
+async def listar_produtos(current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
+    meus_produtos = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.user_id == current_user.id, ProdutoMonitorado.status != StatusMonitoramento.CANCELADO).all()
+
+    return [
+        {
+        "nome_produto": produto.nome_produto,
+        "preco_alvo": produto.preco_alvo,
+        "data_limite_monitoramento": produto.data_limite_monitoramento,
+        "status": produto.status,
+        "id": produto.id
+        } 
+        for produto in meus_produtos
+    ]
 
 @monitoredProducts_router.patch("/produtos/{id}/cancelar")
 async def cancelar_produtos(id: int, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):

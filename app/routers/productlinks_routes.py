@@ -1,0 +1,157 @@
+from fastapi import APIRouter, Depends, HTTPException, Path
+from sqlalchemy.orm import Session
+from app.models import Usuario, StatusMonitoramento, LinkProduto, ProdutoMonitorado
+from app.dependencies import pegar_sessao, get_current_user
+from app.schemas import LinkProdutoCreateSchema, LinkProdutoUpdateSchema
+from datetime import date, datetime, UTC
+
+productlinks_router = APIRouter(tags=["Criação De Links de Produtos"])
+
+@productlinks_router.post("/produtos/{produto_monitorado_id}/links")
+async def criar_link(produto_monitorado_id: int, linkprodutocreateschema: LinkProdutoCreateSchema, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
+
+    produto = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
+    
+    if not produto:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum grupo de produto encontrado."
+    )
+
+    link_existente = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.url == linkprodutocreateschema.url).first() 
+
+    if link_existente:
+        # JA existe um link com essa url
+        raise HTTPException(
+            status_code=400,
+            detail="Você já possui um link para esta Loja."
+    )
+
+    novo_link = LinkProduto(produto_monitorado_id = produto_monitorado_id, nome_loja = linkprodutocreateschema.nome_loja, url = linkprodutocreateschema.url)
+    
+    session.add(novo_link)
+    session.commit()
+    session.refresh(novo_link)
+
+    return {
+        "nome_loja": novo_link.nome_loja,
+        "url": novo_link.url,
+        "produto_monitorado_id": produto_monitorado_id
+    }
+
+@productlinks_router.get("/produtos/{produto_monitorado_id}/links")
+async def listar_link(produto_monitorado_id: int, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
+
+    produto = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
+
+    if not produto:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum grupo de produto encontrado."
+    )
+
+    links_existentes = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.status != StatusMonitoramento.CANCELADO).all()
+
+    return [
+        {
+        "nome_loja": link.nome_loja,
+        "url": link.url,
+        "data_inicio": link.data_de_inicio,
+        "status": link.status,
+        "ultimo_preco": link.ultimo_preco,
+        "id": link.id
+        } 
+        for link in links_existentes
+    ]
+
+@productlinks_router.patch("/produtos/{produto_monitorado_id}/links/{link_id}/cancelar")
+async def cancelar_link(produto_monitorado_id: int, link_id: int, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
+    
+    produto = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
+
+    if not produto:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum grupo de produto encontrado."
+    )
+    
+    link_cancelado = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.id == link_id, LinkProduto.status != StatusMonitoramento.CANCELADO).first()
+
+    if not link_cancelado:
+        raise HTTPException(
+            status_code=404,
+            detail="Link não encontrado."
+        )
+
+
+    link_cancelado.status = StatusMonitoramento.CANCELADO
+    link_cancelado.motivo_encerramento = "Cancelado pelo usuario"
+    link_cancelado.data_encerramento = datetime.now(UTC)
+
+    dados_link_cancelado = {
+        "nome_loja": link_cancelado.nome_loja,
+        "url": link_cancelado.url,
+        "data_inicio": link_cancelado.data_de_inicio,
+        "status": link_cancelado.status,
+        "ultimo_preco": link_cancelado.ultimo_preco,
+        "data_encerramento": link_cancelado.data_encerramento, 
+        "id": link_cancelado.id
+    }
+        
+    session.commit()
+    session.refresh(link_cancelado)
+
+    return dados_link_cancelado
+
+    
+@productlinks_router.patch("/produtos/{produto_monitorado_id}/links/{link_id}")
+async def editar_link(produto_monitorado_id: int, link_id: int, linkprodutoupdateschema: LinkProdutoUpdateSchema, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
+
+    produto = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
+
+    if not produto:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum grupo de produto encontrado."
+    )
+    
+    link_editado = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.id == link_id, LinkProduto.status != StatusMonitoramento.CANCELADO).first()
+
+    if not link_editado:
+        raise HTTPException(
+            status_code=404,
+            detail="Link não encontrado."
+        )
+
+    if linkprodutoupdateschema.nome_loja is not None:
+        link_editado.nome_loja = linkprodutoupdateschema.nome_loja
+    
+    if linkprodutoupdateschema.url is not None:
+
+        url_existente = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.url == linkprodutoupdateschema.url, LinkProduto.id != link_id).first()
+
+        if url_existente:
+            raise HTTPException(
+            status_code=400,
+            detail="Já existe um link com essa URL neste grupo."
+        )
+
+        link_editado.url = linkprodutoupdateschema.url
+
+    session.commit()
+    session.refresh(link_editado)
+
+    dados_link_editado = {
+        "nome_loja": link_editado.nome_loja,
+        "url": link_editado.url,
+        "data_inicio": link_editado.data_de_inicio,
+        "status": link_editado.status,
+        "ultimo_preco": link_editado.ultimo_preco,
+        "data_encerramento": link_editado.data_encerramento, 
+        "id": link_editado.id
+    }
+
+    return dados_link_editado
+
+
+    

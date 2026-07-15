@@ -22,6 +22,7 @@ class StatusMonitoramento(str, Enum):
     PRECO_ATINGIDO = "PRECO_ATINGIDO"
     CANCELADO = "CANCELADO"
 
+
 class ProdutoMonitorado(Base):
     __tablename__ = "produtos_monitorados"
 
@@ -45,6 +46,9 @@ class ProdutoMonitorado(Base):
 
     ultima_execucao = Column(DateTime, nullable=True)
 
+class LojasSuportadas(str, Enum):
+    KABUM = "KABUM"
+
 class LinkProduto(Base):
     __tablename__ = "links_produtos"
 
@@ -56,9 +60,13 @@ class LinkProduto(Base):
 
     url = Column(String, nullable=False)
 
+    data_de_inicio = Column(Date, server_default=func.now())
+
     status = Column(SQLEnum(StatusMonitoramento), nullable=False, default=StatusMonitoramento.ATIVO)
 
-    data_de_inicio = Column(Date, server_default=func.now())
+    motivo_encerramento = Column(String(255), nullable=True)
+
+    data_encerramento = Column(DateTime, nullable=True)
 
     ultimo_preco = Column(Numeric(10, 2), nullable=True)
 
