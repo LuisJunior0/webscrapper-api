@@ -36,6 +36,19 @@ async def criar_link(produto_monitorado_id: int, linkprodutocreateschema: LinkPr
     )
 
     novo_link = LinkProduto(produto_monitorado_id = produto_monitorado_id, nome_loja = linkprodutocreateschema.nome_loja, url = linkprodutocreateschema.url)
+
+    #Caso falhe, levanta um erro de captura de dados
+    try:
+        #Roda o scrapper e fornece os dados (MPV possui apenas Kabum)
+        nome_produto, preco_produto = scrapper_kabum(novo_link.url)
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Não foi possível capturar os dados da URL."
+        )
+    novo_link.nome_produto = nome_produto
+    novo_link.ultimo_preco = preco_produto
+    novo_link.ultima_coleta = datetime.now(UTC)
     
     session.add(novo_link)
     session.commit()
@@ -44,7 +57,10 @@ async def criar_link(produto_monitorado_id: int, linkprodutocreateschema: LinkPr
     return {
         "nome_loja": novo_link.nome_loja,
         "url": novo_link.url,
-        "produto_monitorado_id": produto_monitorado_id
+        "link_id": novo_link.id,
+        "nome_produto": novo_link.nome_produto,
+        "ultimo_preco": novo_link.ultimo_preco,
+        "ultima_coleta": novo_link.ultima_coleta
     }
 
 @productlinks_router.get("/produtos/{produto_monitorado_id}/links")
@@ -59,7 +75,6 @@ async def listar_link(produto_monitorado_id: int, current_user: Usuario = Depend
     )
 
     links_existentes = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.status != StatusMonitoramento.CANCELADO).all()
-    
     return [
         {
         "nome_loja": link.nome_loja,

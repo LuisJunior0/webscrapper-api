@@ -15,13 +15,14 @@ async def criar_produto(produtomonitoradocreateschema: ProdutosMonitoradosCreate
     produto_monitorado = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.nome_produto==produtomonitoradocreateschema.nome_produto, ProdutoMonitorado.user_id==current_user.id, ProdutoMonitorado.status != StatusMonitoramento.CANCELADO).first() 
     
     if produto_monitorado:
-        # JA existe um produto_monitorado com esse nome
+        # Ja existe um produto_monitorado com esse nome
         raise HTTPException(
             status_code=400,
             detail="Você já possui um grupo de monitoramento com este nome."
     )
     
-    if produtomonitoradocreateschema.data_limite_monitoramento <=date.today():
+    if produtomonitoradocreateschema.data_limite_monitoramento <=date.today(): #Variaveis em que o usuario deve fazer um input é usado date.today()
+        # Datas iguais ou superiores não podem ser usadas como Data_Limite
         raise HTTPException(
             status_code=400,
             detail="A data limite deve ser futura."
@@ -32,10 +33,11 @@ async def criar_produto(produtomonitoradocreateschema: ProdutosMonitoradosCreate
     session.add(novo_produto)
     session.commit()
     session.refresh(novo_produto)
+
     return {
         "nome_produto": novo_produto.nome_produto,
         "preco_alvo": novo_produto.preco_alvo,
-        "data_limite_monitoramento": novo_produto.data_limite_monitoramento
+        "data_limite_monitoramento": novo_produto.data_limite_monitoramento 
     }
 
 
@@ -44,24 +46,27 @@ async def listar_produtos(current_user: Usuario = Depends(get_current_user), ses
     
     meus_produtos = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.user_id == current_user.id, ProdutoMonitorado.status != StatusMonitoramento.CANCELADO).all()
 
-    total_links_ativos = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == current_user.id, LinkProduto.status != StatusMonitoramento.CANCELADO).count()
+    dados_produtos = []
 
-    return [
-        {
-        "nome_produto": produto.nome_produto,
-        "preco_alvo": produto.preco_alvo,
-        "data_limite_monitoramento": produto.data_limite_monitoramento,
-        "status": produto.status,
-        "links_ativos": total_links_ativos,
-        "id": produto.id
-        } 
-        for produto in meus_produtos
-    ]
+    for produto in meus_produtos:
+        # Para fazer a listagem correta de links ativos por grupo (e não total), é utilizado o for para acessar o produto.id
+        total_links = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto.id, LinkProduto.status != StatusMonitoramento.CANCELADO).count()
+        
+        dados_produtos.append(
+            {
+            "nome_produto": produto.nome_produto,
+            "preco_alvo": produto.preco_alvo,
+            "links_ativos": total_links,
+            "id": produto.id
+            }
+        )
+    return dados_produtos
 
-@monitoredProducts_router.patch("/produtos/{id}/cancelar")
-async def cancelar_produtos(id: int, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
+
+@monitoredProducts_router.patch("/produtos/{produto_id}/cancelar")
+async def cancelar_produtos(produto_id: int, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
     
-    produto_cancelado = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.user_id==current_user.id, ProdutoMonitorado.id == id).first() 
+    produto_cancelado = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.user_id==current_user.id, ProdutoMonitorado.id == produto_id).first() 
 
     if not produto_cancelado:
         raise HTTPException(
@@ -74,10 +79,11 @@ async def cancelar_produtos(id: int, current_user: Usuario = Depends(get_current
             status_code=400,
             detail="Produto já está cancelado."
         )
-
+    
+    #Essa rota é apenas de SoftDelete, os dados continuam no sistema para manipulação porém o usuario perde o acesso (StatusMonitoramento.CANCELADO)
     produto_cancelado.status = StatusMonitoramento.CANCELADO
     produto_cancelado.motivo_encerramento = "Cancelado pelo usuario"
-    produto_cancelado.data_encerramento = datetime.now(UTC)
+    produto_cancelado.data_encerramento = datetime.now(UTC) #Variaveis em que o usuario não deve fazer nenhum input é usado datetime.now()
     
     dados_produto_cancelado = {
         "nome_produto": produto_cancelado.nome_produto,
@@ -88,9 +94,16 @@ async def cancelar_produtos(id: int, current_user: Usuario = Depends(get_current
         "data_encerramento": produto_cancelado.data_encerramento, 
         "id": produto_cancelado.id
     }
-        
+    
+    links_cancelados = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_id, LinkProduto.status != StatusMonitoramento.CANCELADO).all()
+    for link in links_cancelados:
+        link.status = StatusMonitoramento.CANCELADO
+        link.motivo_encerramento = "Cancelado pelo usuario"
+        link.data_encerramento = datetime.now(UTC)
+    
     session.commit()
     session.refresh(produto_cancelado)
+    session.refresh(link)
 
     return dados_produto_cancelado
 
@@ -107,14 +120,17 @@ async def editar_produto(produtosmonitoradosppdateschema: ProdutosMonitoradosUpd
 
     produto_editado = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
 
+    # Não é possivel cancelar um ID previamente cancelado
     if produto_editado.status == StatusMonitoramento.CANCELADO:
         raise HTTPException(
             status_code=404,
             detail="Esse produto ja foi cancelado."
         )
     
+    # Caso não passe nada o produtosmonitoradosppdateschema ele vira como None, logo não entra no if e mantem o padrão
     if produtosmonitoradosppdateschema.nome_produto is not None:
-
+        
+        # É comparado o ID editado com os demais IDs associados ao usuario ProdutoMonitorado.id != produto_monitorado_id, caso True não é possivel editar um grupo para um previamente cadastrado
         nome_produto_existente = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.user_id == current_user.id, ProdutoMonitorado.nome_produto == produtosmonitoradosppdateschema.nome_produto, ProdutoMonitorado.id != produto_monitorado_id).first()
         
         if nome_produto_existente:
@@ -124,7 +140,7 @@ async def editar_produto(produtosmonitoradosppdateschema: ProdutosMonitoradosUpd
         )
 
         produto_editado.nome_produto = produtosmonitoradosppdateschema.nome_produto
-
+    
     if produtosmonitoradosppdateschema.preco_alvo is not None:
         produto_editado.preco_alvo = produtosmonitoradosppdateschema.preco_alvo
 
