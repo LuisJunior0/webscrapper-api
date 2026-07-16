@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
-from app.models import Usuario, StatusMonitoramento, LinkProduto, ProdutoMonitorado
+from app.models import Usuario, StatusMonitoramento, LinkProduto, ProdutoMonitorado, HistoricoPreco
 from app.dependencies import pegar_sessao, get_current_user
 from app.schemas import LinkProdutoCreateSchema, LinkProdutoUpdateSchema
 from datetime import date, datetime, UTC
@@ -51,6 +51,11 @@ async def criar_link(produto_monitorado_id: int, linkprodutocreateschema: LinkPr
     novo_link.ultima_coleta = datetime.now(UTC)
     
     session.add(novo_link)
+    session.flush() #Flush gera um ID no banco antes mesmo de comitar, para ser usado no novo_link.id de historico
+
+    historico_de_precos = HistoricoPreco(link_produto_id = novo_link.id, preco = preco_produto, capturado_em = datetime.now(UTC))
+    session.add(historico_de_precos)
+    
     session.commit()
     session.refresh(novo_link)
 
