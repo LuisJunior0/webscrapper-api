@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
-from app.models import ProdutoMonitorado, Usuario, StatusMonitoramento
+from app.models import ProdutoMonitorado, Usuario, StatusMonitoramento, LinkProduto
 from app.dependencies import pegar_sessao, get_current_user
 from app.schemas import ProdutosMonitoradosCreateSchema, ProdutosMonitoradosUpdateSchema
 from datetime import date, datetime, UTC
@@ -41,7 +41,10 @@ async def criar_produto(produtomonitoradocreateschema: ProdutosMonitoradosCreate
 
 @monitoredProducts_router.get("/produtos")
 async def listar_produtos(current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
+    
     meus_produtos = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.user_id == current_user.id, ProdutoMonitorado.status != StatusMonitoramento.CANCELADO).all()
+
+    total_links_ativos = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == current_user.id, LinkProduto.status != StatusMonitoramento.CANCELADO).count()
 
     return [
         {
@@ -49,6 +52,7 @@ async def listar_produtos(current_user: Usuario = Depends(get_current_user), ses
         "preco_alvo": produto.preco_alvo,
         "data_limite_monitoramento": produto.data_limite_monitoramento,
         "status": produto.status,
+        "links_ativos": total_links_ativos,
         "id": produto.id
         } 
         for produto in meus_produtos

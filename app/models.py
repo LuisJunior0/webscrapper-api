@@ -60,6 +60,8 @@ class LinkProduto(Base):
 
     url = Column(String, nullable=False)
 
+    nome_produto = Column(String, nullable=True)
+
     data_de_inicio = Column(Date, server_default=func.now())
 
     status = Column(SQLEnum(StatusMonitoramento), nullable=False, default=StatusMonitoramento.ATIVO)

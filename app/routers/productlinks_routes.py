@@ -4,6 +4,8 @@ from app.models import Usuario, StatusMonitoramento, LinkProduto, ProdutoMonitor
 from app.dependencies import pegar_sessao, get_current_user
 from app.schemas import LinkProdutoCreateSchema, LinkProdutoUpdateSchema
 from datetime import date, datetime, UTC
+from app.scrappers.kabum import scrapper_kabum
+
 
 productlinks_router = APIRouter(tags=["CRUD De Links de Produtos"])
 
@@ -57,7 +59,7 @@ async def listar_link(produto_monitorado_id: int, current_user: Usuario = Depend
     )
 
     links_existentes = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.status != StatusMonitoramento.CANCELADO).all()
-
+    
     return [
         {
         "nome_loja": link.nome_loja,
@@ -74,7 +76,6 @@ async def listar_link(produto_monitorado_id: int, current_user: Usuario = Depend
 async def cancelar_link(produto_monitorado_id: int, link_id: int, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
     
     produto = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
-
     if not produto:
         raise HTTPException(
             status_code=404,
