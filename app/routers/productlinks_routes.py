@@ -87,6 +87,7 @@ async def listar_link(produto_monitorado_id: int, current_user: Usuario = Depend
         "data_inicio": link.data_de_inicio,
         "status": link.status,
         "ultimo_preco": link.ultimo_preco,
+        "group_id":link.produto_monitorado_id,
         "id": link.id
         } 
         for link in links_existentes
@@ -179,5 +180,38 @@ async def editar_link(produto_monitorado_id: int, link_id: int, linkprodutoupdat
 
     return dados_link_editado
 
+@productlinks_router.get("/produtos/{produto_monitorado_id}/links/{link_id}/historico")
+async def listar_historico(produto_monitorado_id: int, link_id: int, current_user: Usuario = Depends(get_current_user), session: Session = Depends(pegar_sessao)):
 
+    produto = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == produto_monitorado_id, ProdutoMonitorado.user_id == current_user.id).first()
+
+    if not produto:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum grupo de produto encontrado."
+    )
+
+    links_existentes = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.status != StatusMonitoramento.CANCELADO).all()
+
+    if not links_existentes:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum link encontrado"
+        )
     
+    historicos = session.query(HistoricoPreco).filter(HistoricoPreco.link_produto_id == link_id).all()
+
+    if not historicos:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum historico disponivel encontrado"
+        )
+    
+    return [
+        {
+        "preco": historico.preco,
+        "capturado_em": historico.capturado_em
+        
+        }
+        for historico in historicos
+    ]
