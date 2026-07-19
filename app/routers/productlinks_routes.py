@@ -199,6 +199,14 @@ async def listar_historico(produto_monitorado_id: int, link_id: int, current_use
             detail="Nenhum link encontrado"
         )
     
+    link_do_grupo = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.id == link_id,  LinkProduto.status != StatusMonitoramento.CANCELADO).first()
+
+    if not link_do_grupo:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum link encontrado no grupo atual"
+        )
+    
     historicos = session.query(HistoricoPreco).filter(HistoricoPreco.link_produto_id == link_id).all()
 
     if not historicos:
