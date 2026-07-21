@@ -26,7 +26,7 @@ async def criar_link(produto_monitorado_id: int, linkprodutocreateschema: LinkPr
             detail="Não é possível adicionar links a um grupo cancelado."
         )
     
-    link_existente = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.url == linkprodutocreateschema.url, LinkProduto.status != StatusMonitoramento.CANCELADO).first() 
+    link_existente = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.url == linkprodutocreateschema.url, LinkProduto.status == StatusMonitoramento.ATIVO).first() 
 
     if link_existente:
         # JA existe um link com essa url
@@ -65,7 +65,8 @@ async def criar_link(produto_monitorado_id: int, linkprodutocreateschema: LinkPr
         "link_id": novo_link.id,
         "nome_produto": novo_link.nome_produto,
         "ultimo_preco": novo_link.ultimo_preco,
-        "ultima_coleta": novo_link.ultima_coleta
+        "ultima_coleta": novo_link.ultima_coleta,
+        "status": novo_link.status
     }
 
 @productlinks_router.get("/produtos/{produto_monitorado_id}/links")
@@ -87,6 +88,7 @@ async def listar_link(produto_monitorado_id: int, current_user: Usuario = Depend
         "data_inicio": link.data_de_inicio,
         "status": link.status,
         "ultimo_preco": link.ultimo_preco,
+        "ultima_coleta": link.ultima_coleta,
         "group_id":link.produto_monitorado_id,
         "id": link.id
         } 

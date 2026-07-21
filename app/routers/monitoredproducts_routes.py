@@ -37,7 +37,7 @@ async def criar_produto(produtomonitoradocreateschema: ProdutosMonitoradosCreate
     return {
         "nome_produto": novo_produto.nome_produto,
         "preco_alvo": novo_produto.preco_alvo,
-        "data_limite_monitoramento": novo_produto.data_limite_monitoramento 
+        "data_limite_monitoramento": novo_produto.data_limite_monitoramento
     }
 
 
@@ -57,7 +57,8 @@ async def listar_produtos(current_user: Usuario = Depends(get_current_user), ses
             "nome_produto": produto.nome_produto,
             "preco_alvo": produto.preco_alvo,
             "links_ativos": total_links,
-            "id": produto.id
+            "id": produto.id,
+            "status": produto.status
             }
         )
     return dados_produtos
