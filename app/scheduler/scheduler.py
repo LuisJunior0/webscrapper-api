@@ -8,8 +8,9 @@ scheduler = BlockingScheduler(timezone=tz)
 
 job = scheduler.add_job(
     func=atualizar_precos,
-    trigger="interval",
-    hours=12
+    trigger="cron",
+    hour="0,12",
+    minute=0
 )
 
 scheduler.start()
