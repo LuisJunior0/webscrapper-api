@@ -21,12 +21,12 @@ async def criar_produto(produtomonitoradocreateschema: ProdutosMonitoradosCreate
             detail="Você já possui um grupo de monitoramento com este nome."
     )
     
-    if produtomonitoradocreateschema.data_limite_monitoramento <=date.today(): #Variaveis em que o usuario deve fazer um input é usado date.today()
-        # Datas iguais ou superiores não podem ser usadas como Data_Limite
-        raise HTTPException(
-            status_code=400,
-            detail="A data limite deve ser futura."
-    )
+#    if produtomonitoradocreateschema.data_limite_monitoramento <=date.today(): #Variaveis em que o usuario deve fazer um input é usado date.today()
+#        # Datas iguais ou superiores não podem ser usadas como Data_Limite
+#        raise HTTPException(
+#            status_code=400,
+#            detail="A data limite deve ser futura."
+#    )
 
     novo_produto = ProdutoMonitorado(nome_produto = produtomonitoradocreateschema.nome_produto, preco_alvo = produtomonitoradocreateschema.preco_alvo, data_limite_monitoramento = produtomonitoradocreateschema.data_limite_monitoramento, user_id = current_user.id)
     

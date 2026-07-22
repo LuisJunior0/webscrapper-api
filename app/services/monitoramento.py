@@ -2,7 +2,7 @@ import logging
 from app.models import ProdutoMonitorado, LinkProduto, StatusMonitoramento, HistoricoPreco
 from app.database import SessionLocal
 from app.scrappers.kabum import scrapper_kabum
-from datetime import datetime, UTC
+from datetime import datetime, UTC, date
 
 # Devolver log do erro
 logger = logging.getLogger(__name__)
@@ -32,16 +32,37 @@ def atualizar_precos():
                 # Query para buscar o produto amarrado ao link percorrendo no for
                 produto_monitorado = session.query(ProdutoMonitorado).filter(ProdutoMonitorado.id == link.produto_monitorado_id, ProdutoMonitorado.status == StatusMonitoramento.ATIVO).first()
                 
+                # 1. Garante que produto_monitorado existe
+                if produto_monitorado:
+                
+                    if produto_monitorado.data_limite_monitoramento <= date.today():
+                        produto_monitorado.status = StatusMonitoramento.EXPIRADO
+                        produto_monitorado.motivo_encerramento = "Data limite alcançada"
+                        produto_monitorado.data_encerramento = agora
+                        
+                        # Inativa também os links do produto expirado
+                        session.query(LinkProduto).filter(
+                            LinkProduto.status == StatusMonitoramento.ATIVO,
+                            LinkProduto.produto_monitorado_id == produto_monitorado.id
+                        ).update(
+                            {LinkProduto.status: StatusMonitoramento.EXPIRADO,
+                            LinkProduto.motivo_encerramento: "Data limite alcançada",
+                            LinkProduto.data_encerramento: agora})
+                        
+                        # Se expirou, não precisa checar preço
+                        continue
+                
                 # Caso o preco_produto encontrado agora seja menor ou igual ao preco_alvo definido no grupo. Ele é atualizado para PRECO_ATINGIDO
                 # validação de segurança com "and" para entrar apenas se ambas forem True
                 if produto_monitorado and preco_produto <= produto_monitorado.preco_alvo:
                     produto_monitorado.status = StatusMonitoramento.PRECO_ATINGIDO
-                    produto_monitorado.motivo_encerramento = "Preco alvo do atingido"
+                    produto_monitorado.motivo_encerramento = "Preco alvo atingido"
                     produto_monitorado.data_encerramento = agora
                     
                     # Query para buscar os links ativos pertencentes ao grupo com status alterado
                     # Utiliza update para salvar os dados todos de uma vez direto no banco de dados, alterando diretamente em forma de lote (bulk). Otimização 
                     # A variavel links_ativos_do_grupo retorna agora o numero de links encontrados, podendo ser manipulado posteriormente. Ficou aqui apenas por padronização
+                    
                     links_ativos_do_grupo = session.query(LinkProduto).filter(
                     LinkProduto.status == StatusMonitoramento.ATIVO, 
                     LinkProduto.produto_monitorado_id == produto_monitorado.id).update(

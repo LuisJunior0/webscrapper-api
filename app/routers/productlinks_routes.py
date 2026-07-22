@@ -105,7 +105,7 @@ async def cancelar_link(produto_monitorado_id: int, link_id: int, current_user: 
             detail="Nenhum grupo de produto encontrado."
     )
     
-    link_cancelado = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.id == link_id, LinkProduto.status != StatusMonitoramento.CANCELADO).first()
+    link_cancelado = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.id == link_id, LinkProduto.status == StatusMonitoramento.ATIVO).first()
 
     if not link_cancelado:
         raise HTTPException(
@@ -144,7 +144,7 @@ async def editar_link(produto_monitorado_id: int, link_id: int, linkprodutoupdat
             detail="Nenhum grupo de produto encontrado."
     )
     
-    link_editado = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.id == link_id, LinkProduto.status != StatusMonitoramento.CANCELADO).first()
+    link_editado = session.query(LinkProduto).filter(LinkProduto.produto_monitorado_id == produto_monitorado_id, LinkProduto.id == link_id, LinkProduto.status == StatusMonitoramento.ATIVO).first()
 
     if not link_editado:
         raise HTTPException(
